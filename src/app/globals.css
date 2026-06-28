@@ -1,0 +1,163 @@
+@import "tailwindcss";
+
+:root {
+  /* ── Palette — Athliqbd ───────────────────────────
+     Two accents instead of one borrowed brand color: court green for
+     badminton, track orange for running. Every divider in the site
+     carries both as a split-tick, instead of a single brand mark.
+
+     ink:           #142019  deep green-black, primary text & dark sections
+     court-green:   #0B6E4F  badminton accent — courts, in-stock states
+     track-orange:  #E15226  running accent — CTAs, price highlights
+     court-white:   #F7F5F1  warm chalk-white page background ("chalk")
+     court-white-dim:#EFEAE1 a warmer, slightly darker step of chalk —
+                            card surfaces and image placeholders, so they
+                            read as a distinct plane from the page itself
+     line-grey:     #7C7A74  meta text, captions, muted labels
+     line-grey-soft:#E3E0D8  hairline dividers on light bg, warm not pure gray
+  ------------------------------------------------- */
+  --color-ink: #142019;
+  --color-court-green: #0b6e4f;
+  --color-track-orange: #e15226;
+  --color-court-white: #f7f5f1;
+  --color-court-white-dim: #efeae1;
+  --color-line-grey: #7c7a74;
+  --color-line-grey-soft: #e3e0d8;
+}
+
+@theme inline {
+  --color-ink: var(--color-ink);
+  --color-court-green: var(--color-court-green);
+  --color-track-orange: var(--color-track-orange);
+  --color-court-white: var(--color-court-white);
+  --color-court-white-dim: var(--color-court-white-dim);
+  --color-line-grey: var(--color-line-grey);
+  --color-line-grey-soft: var(--color-line-grey-soft);
+
+  /* display: Archivo Black, for H1/H2 and the wordmark.
+     condensed (kept as --font-meta to avoid renaming every component):
+     Oswald, for nav links, buttons, eyebrows, table headers, prices. */
+  --font-display: var(--font-display);
+  --font-meta: var(--font-meta);
+  --font-body: var(--font-body);
+}
+
+body {
+  font-family: var(--font-body), Arial, Helvetica, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-display), Arial, sans-serif;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.font-meta {
+  font-family: var(--font-meta), Arial, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+/* ── Seam divider — Tailwind v4 custom utilities ───
+   Two sports, one store: every section break carries a green tick
+   (badminton) and an orange tick (running) meeting at a seam, instead
+   of a single brand-colored mark or a plain <hr>.
+   `seam-divider` is the standard weight; `seam-divider-thin` is the
+   lighter variant used directly under a page's H1.
+------------------------------------------------- */
+@utility seam-divider {
+  position: relative;
+  height: 2px;
+  background: var(--color-line-grey-soft);
+}
+@utility seam-divider-thin {
+  position: relative;
+  height: 1px;
+  background: var(--color-line-grey-soft);
+}
+.seam-divider::before,
+.seam-divider-thin::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 2px;
+  margin-left: -14px;
+  transform: translateY(-50%);
+  background: var(--color-court-green);
+}
+.seam-divider::after,
+.seam-divider-thin::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 2px;
+  transform: translateY(-50%);
+  background: var(--color-track-orange);
+}
+.seam-divider-thin::before,
+.seam-divider-thin::after {
+  height: 1px;
+}
+
+/* Kept as an alias so earlier markup using .court-divider still renders
+   correctly — new code should reach for seam-divider / seam-divider-thin. */
+.court-divider {
+  position: relative;
+  height: 1px;
+  background: var(--color-line-grey-soft);
+}
+.court-divider::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  width: 14px;
+  height: 7px;
+  margin-left: -14px;
+  background: var(--color-court-green);
+}
+.court-divider::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  width: 14px;
+  height: 7px;
+  background: var(--color-track-orange);
+}
+
+.court-card {
+  border: 1px solid var(--color-line-grey-soft);
+  position: relative;
+}
+.court-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
+  height: 1px;
+  background: var(--color-line-grey-soft);
+}
+
+/* Visible keyboard focus, respecting accessibility */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-track-orange);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

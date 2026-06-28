@@ -1,0 +1,193 @@
+// Prisma schema for Athliqbd — badminton & running gear store
+// Database: SQLite (a single file, no server needed — great for self-hosting on a budget)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────────────────────────
+// ADMIN USERS — people who can log into /admin
+// ───────────────────────────────────────────────
+model AdminUser {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("admin") // "admin" | "staff"
+  createdAt    DateTime @default(now())
+}
+
+// ───────────────────────────────────────────────
+// PAYMENT METHODS — managed from the admin panel rather than hardcoded.
+// Covers manual/offline collection (COD, bKash, Nagad) since formal
+// gateway integration (SSLCommerz) needs a merchant agreement first.
+// For methods like bKash/Nagad, requiresReference=true shows the
+// customer a field to enter the transaction ID so staff can verify
+// the payment manually before confirming the order.
+// ───────────────────────────────────────────────
+model PaymentMethod {
+  id                String   @id @default(cuid())
+  name              String   @unique // "Cash on Delivery", "bKash", "Nagad"
+  type              String   @default("manual") // "cod" | "mobile_banking" | "bank_transfer" | "card"
+  instructions      String?  // shown to the customer at checkout, e.g. "Send to 01XXXXXXXXX"
+  requiresReference Boolean  @default(false)
+  isEnabled         Boolean  @default(true)
+  sortOrder         Int      @default(0)
+  orders            Order[]
+  createdAt         DateTime @default(now())
+}
+
+// ───────────────────────────────────────────────
+// SPORTS — top-level grouping: Badminton, Running, etc.
+// Each Sport has its own set of Categories underneath it.
+// ───────────────────────────────────────────────
+model Sport {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  slug        String     @unique
+  description String?
+  sortOrder   Int        @default(0)
+  categories  Category[]
+  createdAt   DateTime   @default(now())
+}
+
+// ───────────────────────────────────────────────
+// CATEGORIES — e.g. under Badminton: Rackets, Strings, Shuttlecocks, Bags,
+// Grips, Shoes. Under Running: Running Shoes, Apparel, Accessories.
+// Slugs only need to be unique within a sport, not globally, since every
+// category URL is scoped as /shop/[sport]/[category].
+// ───────────────────────────────────────────────
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String
+  description String?
+  sortOrder   Int       @default(0)
+  sportId     String
+  sport       Sport     @relation(fields: [sportId], references: [id])
+  products    Product[]
+  createdAt   DateTime  @default(now())
+
+  @@unique([sportId, slug])
+}
+
+// ───────────────────────────────────────────────
+// PRODUCTS
+// Racquet-specific fields (weightGrip, balancePoint, flexibility, stringTension)
+// are optional so the same table works for strings, shuttlecocks, bags, etc.
+// ───────────────────────────────────────────────
+model Product {
+  id              String        @id @default(cuid())
+  name            String
+  slug            String        @unique
+  brand           String        @default("Victor")
+  description     String
+  price           Int           // stored in BDT, whole taka (no paisa complexity)
+  compareAtPrice  Int?          // original price, for showing a discount strike-through
+  stock           Int           @default(0)
+  sku             String?       @unique
+
+  // Racquet-specific specs — all optional, only filled in for racquets
+  weightGrip      String?       // e.g. "4U G5"
+  balancePoint    String?       // e.g. "Head Heavy", "Even", "Head Light"
+  flexibility     String?       // e.g. "Stiff", "Medium", "Flexible"
+  stringTension   String?       // e.g. "20-28 lbs"
+  material        String?       // e.g. "Carbon Fiber"
+
+  // Running shoe-specific specs — all optional, only filled in for running shoes
+  shoeSizeRange   String?       // e.g. "EU 39-45"
+  terrainType     String?       // e.g. "Road", "Trail", "Track"
+  cushioning      String?       // e.g. "High", "Medium", "Minimal"
+  dropHeight      String?       // e.g. "8mm" — heel-to-toe drop
+
+  isPublished     Boolean       @default(true)
+  isFeatured      Boolean       @default(false)
+
+  categoryId      String
+  category        Category      @relation(fields: [categoryId], references: [id])
+
+  images          ProductImage[]
+  orderItems      OrderItem[]
+  reviews         Review[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([categoryId])
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  url       String   // path under /public/uploads/...
+  altText   String?
+  sortOrder Int      @default(0)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// ───────────────────────────────────────────────
+// REVIEWS — customer-submitted, held for admin approval before they
+// show up publicly (isApproved defaults to false). No login required
+// to submit one; this keeps things simple for a small storefront.
+// ───────────────────────────────────────────────
+model Review {
+  id           String   @id @default(cuid())
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customerName String
+  rating       Int      // 1-5
+  comment      String
+  isApproved   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([productId])
+}
+
+// ───────────────────────────────────────────────
+// ORDERS
+// paymentStatus is separate from orderStatus so that adding online payment
+// later (SSLCommerz/bKash) only means new values for paymentStatus —
+// no restructuring needed.
+// ───────────────────────────────────────────────
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique // human-friendly, e.g. "ATL-7F3K2A"
+
+  customerName    String
+  customerPhone   String
+  customerAddress String
+  customerNote    String?
+
+  subtotal        Int
+  deliveryFee     Int         @default(0)
+  total           Int
+
+  paymentMethodId   String?
+  paymentMethodRef  PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+  paymentMethod     String      @default("Cash on Delivery") // snapshot of method name at order time
+  paymentReference  String?     // customer-entered transaction ID (bKash/Nagad), if the method requires one
+  paymentStatus     String      @default("pending") // "pending" | "paid" | "failed"
+
+  orderStatus     String      @default("placed") // "placed" | "confirmed" | "shipped" | "delivered" | "cancelled"
+
+  items           OrderItem[]
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  productName String   // snapshot at time of order, in case product is later edited/deleted
+  unitPrice   Int      // snapshot at time of order
+  quantity    Int
+}
