@@ -42,9 +42,7 @@ npm run dev
 
 Visit **http://localhost:3000** in your browser.
 
-**Test Login Credentials**:
-- Email: `admin@athliqbd.com`
-- Password: `ChangeMe123!` (change this immediately!)
+
 
 ---
 
